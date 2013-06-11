@@ -17,6 +17,16 @@ public class AROverlay {
     private View view;
     private boolean mIsVisible;
 
+    // Listener
+    private OnTapListener listener = null;
+
+    public void setOnTapListener(OnTapListener listener) {
+        this.listener = listener;
+    }
+    public interface OnTapListener{
+        public void onTap(AROverlay overlay);
+    }
+
     public AROverlay(Context context, double lat, double lng, int layout){
         location = new Location("Point");
         location.setLongitude(lat);
@@ -28,6 +38,9 @@ public class AROverlay {
         view.setOnTouchListener(new View.OnTouchListener(){
             @Override
             public boolean onTouch(View arg0, MotionEvent arg1) {
+                if(listener != null){
+                    listener.onTap(AROverlay.this);
+                }
                 return false;
             }
         });
