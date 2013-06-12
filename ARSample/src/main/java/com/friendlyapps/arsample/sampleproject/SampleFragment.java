@@ -27,7 +27,8 @@ public class SampleFragment extends ARFragment {
 
     private void addOverLay(){
 
-        AROverlay overlay = new AROverlay(getActivity().getApplicationContext(), 55.967986, -3.181017, R.layout.sample_overlay);
+
+        AROverlay overlay = new AROverlay(getActivity().getApplicationContext(), 55.948671, -3.200199, R.layout.sample_overlay);
         getARView().addOverlay(overlay);
 
         overlay.setOnTapListener(new AROverlay.OnTapListener() {

@@ -112,9 +112,12 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
         camera = Camera.open();
         camera.setDisplayOrientation(90);
+        startPreview();
+
     }
 
     public void onPause() {
+
         if (inPreview) {
             camera.stopPreview();
             mSensorManager.unregisterListener(this);
@@ -152,13 +155,6 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
         // Compass bearing
         float compassBearing = getCompassBearing();
-        if(!portrait){
-            compassBearing = compassBearing + 90f;
-        }
-
-        if(compassBearing > 180f){
-             compassBearing = compassBearing - 360f;
-        }
 
         if(listener != null){
             listener.onBearingChange(compassBearing);
@@ -194,7 +190,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
                          overlays.get(i).draw((int)drawLocationX, (int)drawLocationY, forground);
                }else{
-                         overlays.get(i).close(forground);
+                         overlays.get(i).close();
                }
         }
     }
@@ -364,7 +360,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     };
 
 
-    // Gettings + Setters
+    // Gettings and Setters
 
     public void setOrientation(int Orientation){
         if(camera != null){
@@ -390,6 +386,11 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         this.forground = forground;
     }
 
+    /**
+     * Adds a compass to the top left corner of the screen
+     * @param inside resources id of drawable for the turning element of the compass
+     * @param outside resources id of drawable for the static element of the compass
+     */
     public void setComapss(int inside, int outside){
         Resources res = context.getResources();
         compass_inside = BitmapFactory.decodeResource(res, inside);
@@ -405,8 +406,20 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         overlays.add(overlay);
     }
 
+    public void removeOverlay(AROverlay overlay){
+        overlays.remove(overlay);
+        overlay.close();
+    }
+
     public void setOverlays(List<AROverlay> overlays){
         this.overlays = overlays;
+    }
+
+    public void removeAllOverlays(){
+        for(int i = 0; i < overlays.size(); i ++){
+            overlays.get(i).close();
+        }
+        overlays = new ArrayList<AROverlay>();
     }
 
     public boolean isLoaded(){
@@ -420,7 +433,17 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         orientation = new float[3];
 
         SensorManager.getOrientation(rotationMatrix, orientation);
-        return (float) (orientation[0]*360/(2*Math.PI));
+        double compassBearing = (orientation[0] * 360 / (2 * Math.PI));
+
+        if(!portrait){
+            compassBearing = compassBearing + 90f;
+        }
+
+        if(compassBearing > 180f){
+            compassBearing = compassBearing - 360f;
+        }
+
+        return (float)compassBearing;
     }
 
 }
