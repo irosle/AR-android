@@ -19,15 +19,6 @@ public class SampleFragment extends ARFragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle saved) {
         View view =  super.onCreateView(inflater, container, saved);
 
-        addOverLay();
-
-        return view;
-    }
-
-
-    private void addOverLay(){
-
-
         AROverlay overlay = new AROverlay(getActivity().getApplicationContext(), 55.948671, -3.200199, R.layout.sample_overlay);
         getARView().addOverlay(overlay);
 
@@ -38,5 +29,6 @@ public class SampleFragment extends ARFragment {
             }
         });
 
+        return view;
     }
 }

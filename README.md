@@ -3,7 +3,7 @@ AR-android
 
 Augmented reality project.
 
-This project is a first attempt at a simple agmented reality library that simple places overlay layout onto the camera.
+This project is a first attempt at a simple augmented reality library that simple places overlay layout onto the camera.
 
 So far include 
 ARFragment - this handles the life span of the ARView
@@ -13,7 +13,7 @@ AROverlay - this can be created with any layout res id and a lat lng. Once added
 
 TO-DO
 
-onResume still not propally implemented.
+onResume still not propally implemented when devise sleeps.
 orintation change still needs improvment
 still need to implement a range of getters and setters
 views change shape at right side of screen, parent view needs to ignore it's parent size to fix this.
