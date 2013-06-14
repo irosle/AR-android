@@ -7,8 +7,13 @@ import android.view.Menu;
 
 import com.friendlyapps.arsample.R;
 
-public class ARActivity extends FragmentActivity {
+public class SampleActivity extends FragmentActivity {
 
+
+    /** Fragment is created in layout file so activity needs to do nothing progrmatically.
+     * Fragment can be added using newInstance method. (Untested)
+
+    */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
