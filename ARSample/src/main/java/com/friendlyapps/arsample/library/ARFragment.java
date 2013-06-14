@@ -11,21 +11,28 @@ import android.widget.RelativeLayout;
 
 /**
  * Created by Stuart on 11/06/2013.
+ *
+ * The point of this fragment is to look after the life cycle of the ARView
+ * It also creates the RelativeLayout that sits on top of the ARView holing the overlays
+ *
  */
-public class ARFramgment extends Fragment {
+public class ARFragment extends Fragment{
 
     private ARView arView;
 
-    public static ARFramgment newInstance() {
-        ARFramgment fragment = new ARFramgment();
+
+    /**
+     * Method to progrmatically create fragment
+     * @return ARFragment
+     */
+    public static ARFragment newInstance() {
+        ARFragment fragment = new ARFragment();
         return fragment;
     }
 
     @Override
     public void onCreate(Bundle saved) {
         super.onCreate(saved);
-
-
     }
 
     @Override

@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 
 /**
@@ -17,6 +18,22 @@ public class AROverlay {
     private View view;
     private boolean mIsVisible;
 
+    // Listener
+    private OnTapListener listener = null;
+
+    public void setOnTapListener(OnTapListener listener) {
+        this.listener = listener;
+    }
+    public interface OnTapListener{
+        public void onTap(AROverlay overlay);
+    }
+
+    /**
+     * Constructor
+     * @param lat of overlay
+     * @param lng of overlay
+     * @param layout resources id of overlay layout
+     */
     public AROverlay(Context context, double lat, double lng, int layout){
         location = new Location("Point");
         location.setLongitude(lat);
@@ -28,6 +45,9 @@ public class AROverlay {
         view.setOnTouchListener(new View.OnTouchListener(){
             @Override
             public boolean onTouch(View arg0, MotionEvent arg1) {
+                if(listener != null){
+                    listener.onTap(AROverlay.this);
+                }
                 return false;
             }
         });
@@ -45,7 +65,7 @@ public class AROverlay {
         lp.leftMargin = x - view.getWidth()/2;
         lp.topMargin = y - view.getHeight()/2;
 
-        close(parent);
+        close();
 
         parent.addView(view, lp);
         view.setVisibility(View.VISIBLE);
@@ -53,12 +73,11 @@ public class AROverlay {
 
     }
 
-    public void close(RelativeLayout parent) {
+    public void close() {
         if (mIsVisible) {
             mIsVisible = false;
-            parent.removeView(view);
+            ((ViewGroup)view.getParent()).removeView(view);
         }
     }
-
 
 }
