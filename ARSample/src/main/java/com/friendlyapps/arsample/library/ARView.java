@@ -520,4 +520,5 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         return (float)compassBearing;
     }
 
+
 }
