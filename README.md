@@ -14,7 +14,4 @@ AROverlay - this can be created with any layout res id and a lat lng. Once added
 TO-DO
 
 onResume still not properly implemented when devise sleeps
-orientation change still needs improvement
-still need to implement a range of getters and setters
-overlay views change shape at right side of screen
 altitude

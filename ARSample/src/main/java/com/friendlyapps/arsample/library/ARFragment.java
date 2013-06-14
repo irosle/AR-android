@@ -1,6 +1,7 @@
 package com.friendlyapps.arsample.library;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -8,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 /**
  * Created by Stuart on 11/06/2013.
@@ -41,17 +43,24 @@ public class ARFragment extends Fragment{
         Context context = getActivity().getApplicationContext();
 
         FrameLayout parent = new FrameLayout(context);
-
-        arView = new ARView(context);
-        RelativeLayout forground = new RelativeLayout(context);
-
-        arView.setForground(forground);
+        AROverlayCanvas foreground = new AROverlayCanvas(context);
 
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT);
 
-        parent.addView(arView, lp);
-        parent.addView(forground, lp);
+        if(supportsAR()){
+            arView = new ARView(context);
+            arView.setCamera(supportsCamera());
+
+            arView.setForeground(foreground);
+            parent.addView(arView, lp);
+        }else{
+            TextView textView = new TextView(context);
+            textView.setText("Devise does not support AR"); // Shouldn't be hard coded but don't want to use resources files
+            foreground.addView(textView);
+        }
+
+        parent.addView(foreground, lp);
 
         return parent;
     }
@@ -61,6 +70,19 @@ public class ARFragment extends Fragment{
         return arView;
     }
 
+    private boolean supportsAR(){
+        PackageManager PM = getActivity().getPackageManager();
+        boolean acc = PM.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER);
+        boolean compass = PM.hasSystemFeature(PackageManager.FEATURE_SENSOR_COMPASS);
+
+        return (acc && compass);
+    }
+
+    private boolean supportsCamera(){
+        PackageManager PM = getActivity().getPackageManager();
+        return PM.hasSystemFeature(PackageManager.FEATURE_CAMERA);
+
+    }
 
     @Override
     public void onPause() {

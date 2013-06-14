@@ -18,6 +18,8 @@ public class AROverlay {
     private View view;
     private boolean mIsVisible;
 
+    private float distance = -1;
+
     // Listener
     private OnTapListener listener = null;
 
@@ -30,9 +32,10 @@ public class AROverlay {
 
     /**
      * Constructor
-     * @param lat of overlay
-     * @param lng of overlay
-     * @param layout resources id of overlay layout
+     * @param context
+     * @param lat
+     * @param lng
+     * @param layout Layout resource id
      */
     public AROverlay(Context context, double lat, double lng, int layout){
         location = new Location("Point");
@@ -57,7 +60,23 @@ public class AROverlay {
         return location;
     }
 
-    public void draw(int x, int y, RelativeLayout parent){
+    /**
+     * Method used by ARView
+     * @param distance
+     */
+    public void setDistance(float distance){
+        this.distance = distance;
+    }
+
+    /**
+     * Get distance from current location to location of overlay
+     * @return distance away or -1 if unset
+     */
+    public float getDistance(){
+        return distance;
+    }
+
+    public void draw(int x, int y, AROverlayCanvas parent){
 
         RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
                 RelativeLayout.LayoutParams.WRAP_CONTENT);

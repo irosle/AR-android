@@ -19,6 +19,7 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -42,12 +43,12 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     private boolean sensorStarted = false;
     private boolean loaded = false;
 
-    private boolean portrait = true;
+    private int Orientation = Surface.ROTATION_90;
 
-    private boolean show_compass = false;
+    private boolean show_compass = true;
     private Bitmap compass_inside, compass_outside;
 
-    private RelativeLayout forground = null;
+    private AROverlayCanvas foreground = null;
     private SurfaceHolder previewHolder = null;
 
     private float[] rotationMatrix = new float[16];
@@ -63,6 +64,8 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     private float widthDegrees;
     private float heightDegrees;
 
+    private boolean cameraOn = true;
+
     private List<AROverlay> overlays = new ArrayList<AROverlay>();
 
     // Listener
@@ -75,6 +78,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         public void onLoaded();
         public void onLocationChange(Location location);
         public void onBearingChange(float bearing);
+        public void onOrientationChange(int orientation);
     }
 
     public ARView(Context context) {
@@ -108,10 +112,11 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
                 this,
                 mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                 SensorManager.SENSOR_DELAY_GAME );
-
-        camera = Camera.open();
-        camera.setDisplayOrientation(90);
-        startPreview();
+        if(cameraOn){
+            camera = Camera.open();
+            camera.setDisplayOrientation(90);
+            startPreview();
+        }
 
     }
 
@@ -122,8 +127,12 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
             mSensorManager.unregisterListener(this);
         }
         locationManager.removeUpdates(this);
-        camera.release();
-        camera = null;
+
+        if(cameraOn){
+            camera.release();
+            camera = null;
+        }
+
         inPreview = false;
     }
 
@@ -131,25 +140,8 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     @Override
     protected void onDraw(Canvas canvas){
 
-        if(mylocation == null || forground == null || !sensorStarted || camera == null){
+        if(foreground == null || !sensorStarted){
             return;
-        }
-
-        // pixel to degree
-        screenScaleX = (canvas.getWidth() / widthDegrees);
-        screenScaleY = (canvas.getHeight() / heightDegrees);
-
-        // degree width of camera
-        Camera.Parameters parameters = camera.getParameters();
-        widthDegrees = parameters.getHorizontalViewAngle();
-        heightDegrees = parameters.getVerticalViewAngle();
-
-
-        if(!loaded){
-            loaded = true;
-            if(listener != null){
-                listener.onLoaded();
-            }
         }
 
         // Compass bearing
@@ -164,21 +156,57 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
         // Draw Compass
         if(show_compass){
+
             Paint compass_paint = new Paint();
-            canvas.drawBitmap(compass_outside, 10, 10, compass_paint);
+            compass_paint.setColor(Color.RED);
+            compass_paint.setTextSize(30);
+            canvas.drawText(Float.toString(compassBearing), 20, 40, compass_paint);
+
+//            canvas.drawText("x: " + Float.toString(gravity[0]), 20, 70, compass_paint);
+//            canvas.drawText("y: " + Float.toString(gravity[1]), 20, 140, compass_paint);
+
+            /*canvas.drawBitmap(compass_outside, 10, 10, compass_paint);
             canvas.save();
             canvas.rotate(compassBearing, 10 + compass_outside.getWidth()/2, 10 + compass_outside.getWidth()/2);
             canvas.drawBitmap(compass_inside, 10, 10, compass_paint);
-            canvas.restore();
+            canvas.restore();*/
         }
         // -----
 
+        if(mylocation == null){
+            return;
+        }
 
+        if(cameraOn && camera == null){
+            return;
+        }else if(!cameraOn){
+            // Screen degrees - good idea to look at improving this
+            widthDegrees = 35;
+            heightDegrees = 20;
+        }else{
+            // degree width of camera
+            Camera.Parameters parameters = camera.getParameters();
+            widthDegrees = parameters.getHorizontalViewAngle();
+            heightDegrees = parameters.getVerticalViewAngle();
+        }
+
+        // pixel to degree
+        screenScaleX = (canvas.getWidth() / widthDegrees);
+        screenScaleY = (canvas.getHeight() / heightDegrees);
+
+
+        if(!loaded){
+            loaded = true;
+            if(listener != null){
+                listener.onLoaded();
+            }
+        }
 
         for (int i = 0; i < overlays.size(); i ++){
 
             double Xangle = ModSym(compassBearing - mylocation.bearingTo(overlays.get(i).getLocation()));
-            // Currently unable to work out y offset due to altitude differneces becuase of altitude measurement error
+            overlays.get(i).setDistance(mylocation.distanceTo(overlays.get(i).getLocation()));
+            // Currently unable to work out y offset due to altitude differences because of altitude measurement error
             double Yangle = yTilt - 0;
 
             // Check for overlays on screen
@@ -187,7 +215,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
                 float drawLocationX = (float) ((canvas.getWidth()/2) - (Xangle * screenScaleX));
                 float drawLocationY = (float) ((canvas.getHeight()/2) - (Yangle * screenScaleY));
 
-                overlays.get(i).draw((int)drawLocationX, (int)drawLocationY, forground);
+                overlays.get(i).draw((int)drawLocationX, (int)drawLocationY, foreground);
             }else{
                 overlays.get(i).close();
             }
@@ -276,12 +304,17 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
     }
 
+
     private void checkOrination(float[] value){
-        if((value[1] > 5 || value[0] < 0) && !portrait){
-            setOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }else if((value[1] < 5) && portrait){
-            setOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
+        double exact_rotation = Math.atan2(gravity[1], gravity[0]) * 57f;
+
+        int rotation = (((int)(Math.floor((exact_rotation + 45) / 90))) + 4) % 4;
+
+        if(Orientation != rotation){
+            setOrientation(rotation);
         }
+
     }
 
     // Camera code
@@ -362,27 +395,34 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     // Gettings and Setters
 
     public void setOrientation(int Orientation){
+        this.Orientation = Orientation;
+        if(listener != null){
+            listener.onOrientationChange(Orientation);
+        }
         if(camera != null){
-            if(Orientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE){
-                portrait = false;
+            if(Orientation == Surface.ROTATION_0){
                 camera.setDisplayOrientation(0);
-            }else if(Orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){
-                portrait = true;
+            }else if(Orientation == Surface.ROTATION_90){
                 camera.setDisplayOrientation(90);
+            }else if(Orientation == Surface.ROTATION_180){
+                camera.setDisplayOrientation(180);
+            }else if(Orientation == Surface.ROTATION_270){
+                camera.setDisplayOrientation(270);
             }
         }
     }
 
-    public void setCamera(boolean on){
-        if(on){
+    public void setCamera(boolean cameraOn){
+        this.cameraOn = cameraOn;
+        if(cameraOn){
             setVisibility(View.VISIBLE);
         }else{
             setVisibility(View.INVISIBLE);
         }
     }
 
-    public void setForground(RelativeLayout forground){
-        this.forground = forground;
+    public void setForeground(AROverlayCanvas foreground){
+        this.foreground = foreground;
     }
 
     /**
@@ -425,22 +465,28 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         return loaded;
     }
 
+    public int getOrientation(){
+        return Orientation;
+    }
+
 
     public float getCompassBearing(){
         rotationMatrix = new float[9];
         SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomag);
         orientation = new float[3];
 
+        if(Orientation == Surface.ROTATION_0){
+            SensorManager.remapCoordinateSystem(rotationMatrix, SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_MINUS_Z, rotationMatrix);
+        }else if(Orientation == Surface.ROTATION_90){
+            SensorManager.remapCoordinateSystem(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Z, rotationMatrix);
+        }else if(Orientation == Surface.ROTATION_180){
+            SensorManager.remapCoordinateSystem(rotationMatrix, SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_MINUS_Z, rotationMatrix);
+        }else if(Orientation == Surface.ROTATION_270){
+            SensorManager.remapCoordinateSystem(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Z, rotationMatrix);
+        }
+
         SensorManager.getOrientation(rotationMatrix, orientation);
         double compassBearing = (orientation[0] * 360 / (2 * Math.PI));
-
-        if(!portrait){
-            compassBearing = compassBearing + 90f;
-        }
-
-        if(compassBearing > 180f){
-            compassBearing = compassBearing - 360f;
-        }
 
         return (float)compassBearing;
     }
