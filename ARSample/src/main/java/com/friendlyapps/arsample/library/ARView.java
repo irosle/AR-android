@@ -17,6 +17,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Surface;
@@ -26,6 +27,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +35,9 @@ import java.util.List;
  * Created by Stuart on 11/06/2013.
  */
 public class ARView extends SurfaceView implements SensorEventListener, LocationListener {
+
+    private int saveHeight;
+    private int saveWidth;
 
     private Context context;
     private SensorManager mSensorManager;
@@ -43,9 +48,11 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     private boolean sensorStarted = false;
     private boolean loaded = false;
 
-    private int Orientation = Surface.ROTATION_90;
+    private boolean fixedOrientation = false;
 
-    private boolean show_compass = true;
+    private int Orientation = -1;
+
+    private boolean show_compass = false;
     private Bitmap compass_inside, compass_outside;
 
     private AROverlayCanvas foreground = null;
@@ -99,10 +106,25 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
         previewHolder = getHolder();
         previewHolder.addCallback(surfaceCallback);
+
+    }
+
+    public boolean onStartGPS(){
+        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        boolean GPSenabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        if(GPSenabled){
+            String provider = LocationManager.GPS_PROVIDER;
+            locationManager.requestLocationUpdates(provider, 400, 1, this);
+        }
+        return GPSenabled;
+    }
+
+    public void onStopGPS(){
+        locationManager.removeUpdates(this);
     }
 
     public void onStart() {
-        startGPS();
+
 
         mSensorManager.registerListener(
                 this,
@@ -113,29 +135,28 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
                 mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                 SensorManager.SENSOR_DELAY_GAME );
         if(cameraOn){
-            camera = Camera.open();
-            camera.setDisplayOrientation(90);
-            startPreview();
-        }
 
+            safeCameraOpen();
+
+            if(cameraConfigured){
+                initPreview(saveWidth, saveHeight);
+                startPreview();
+            }
+        }
     }
 
     public void onPause() {
 
-        if (inPreview) {
-            camera.stopPreview();
-            mSensorManager.unregisterListener(this);
-        }
-        locationManager.removeUpdates(this);
+        mSensorManager.unregisterListener(this);
 
-        if(cameraOn){
+        if(cameraOn && inPreview){
+            camera.stopPreview();
             camera.release();
             camera = null;
         }
-
+        Orientation = -1;
         inPreview = false;
     }
-
 
     @Override
     protected void onDraw(Canvas canvas){
@@ -231,24 +252,6 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     }
 
     // Location listener
-
-    // ---- Location Code
-
-
-    public boolean startGPS(){
-
-        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        boolean GPSenabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        if(GPSenabled){
-            String provider = LocationManager.GPS_PROVIDER;
-            locationManager.requestLocationUpdates(provider, 400, 1, this);
-        }else{
-            Log.d("AR", "GPS no enabled");
-        }
-        return GPSenabled;
-    }
-
-
     @Override
     public void onLocationChanged(Location location) {
         if(listener != null){
@@ -272,9 +275,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
     }
 
-
     // Sensor data
-
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         int type = sensorEvent.sensor.getType();
@@ -295,14 +296,12 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         checkOrination(gravity);
         // Re-draw
         invalidate();
-
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
     }
-
 
     private void checkOrination(float[] value){
 
@@ -318,31 +317,50 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
     // Camera code
 
-    private Camera.Size getBestPreviewSize(int width, int height,
-                                           Camera.Parameters parameters) {
-        Camera.Size result=null;
+    private boolean safeCameraOpen() {
+        boolean qOpened = false;
+
+        try {
+            releaseCameraAndPreview();
+            camera = Camera.open();
+            qOpened = (camera != null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return qOpened;
+    }
+
+    private void releaseCameraAndPreview() {
+        if (camera != null) {
+            camera.release();
+            camera = null;
+        }
+    }
+
+    private Camera.Size getBestPreviewSize(int width, int height, Camera.Parameters parameters) {
+        Camera.Size result = null;
 
         for (Camera.Size size : parameters.getSupportedPreviewSizes()) {
-            if (size.width<=width && size.height<=height) {
-                if (result==null) {
-                    result=size;
+            if (size.width <= width && size.height <= height) {
+                if (result == null) {
+                    result = size;
                 }
                 else {
-                    int resultArea=result.width*result.height;
-                    int newArea=size.width*size.height;
+                    int resultArea = result.width * result.height;
+                    int newArea = size.width * size.height;
 
-                    if (newArea>resultArea) {
-                        result=size;
+                    if (newArea > resultArea) {
+                        result = size;
                     }
                 }
             }
         }
-
         return(result);
     }
 
     private void initPreview(int width, int height) {
-        if (camera != null && previewHolder.getSurface()!=null) {
+        if (camera != null && previewHolder.getSurface() != null) {
             try {
                 camera.setPreviewDisplay(previewHolder);
             }
@@ -354,7 +372,7 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
 
             if (!cameraConfigured) {
                 Camera.Parameters parameters = camera.getParameters();
-                Camera.Size size=getBestPreviewSize(width, height,
+                Camera.Size size = getBestPreviewSize(width, height,
                         parameters);
 
                 if (size!=null) {
@@ -378,9 +396,9 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
             // no-op -- wait until surfaceChanged()
         }
 
-        public void surfaceChanged(SurfaceHolder holder,
-                                   int format, int width,
-                                   int height) {
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            saveWidth = width;
+            saveHeight = height;
             initPreview(width, height);
             startPreview();
         }
@@ -390,14 +408,27 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         }
     };
 
-
     // Gettings and Setters
 
+    public void fixOrientation(int Orientation){
+        setOrientation(Orientation);
+        fixedOrientation = true;
+    }
+
+    public void unFixOrientation(){
+        fixedOrientation = false;
+    }
+
     public void setOrientation(int Orientation){
+
         this.Orientation = Orientation;
         if(listener != null){
             listener.onOrientationChange(Orientation);
         }
+        if(fixedOrientation){
+            return;
+        }
+
         if(camera != null){
             if(Orientation == Surface.ROTATION_0){
                 camera.setDisplayOrientation(0);
@@ -467,7 +498,6 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
     public int getOrientation(){
         return Orientation;
     }
-
 
     public float getCompassBearing(){
         rotationMatrix = new float[9];
