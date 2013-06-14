@@ -158,18 +158,17 @@ public class ARView extends SurfaceView implements SensorEventListener, Location
         if(show_compass){
 
             Paint compass_paint = new Paint();
-            compass_paint.setColor(Color.RED);
-            compass_paint.setTextSize(30);
-            canvas.drawText(Float.toString(compassBearing), 20, 40, compass_paint);
-
-//            canvas.drawText("x: " + Float.toString(gravity[0]), 20, 70, compass_paint);
-//            canvas.drawText("y: " + Float.toString(gravity[1]), 20, 140, compass_paint);
-
-            /*canvas.drawBitmap(compass_outside, 10, 10, compass_paint);
-            canvas.save();
-            canvas.rotate(compassBearing, 10 + compass_outside.getWidth()/2, 10 + compass_outside.getWidth()/2);
-            canvas.drawBitmap(compass_inside, 10, 10, compass_paint);
-            canvas.restore();*/
+            if(compass_inside == null || compass_outside == null){
+                compass_paint.setColor(Color.RED);
+                compass_paint.setTextSize(30);
+                canvas.drawText(Float.toString(compassBearing), 20, 40, compass_paint);
+            }else{
+                canvas.drawBitmap(compass_outside, 10, 10, compass_paint);
+                canvas.save();
+                canvas.rotate(compassBearing, 10 + compass_outside.getWidth()/2, 10 + compass_outside.getWidth()/2);
+                canvas.drawBitmap(compass_inside, 10, 10, compass_paint);
+                canvas.restore();
+            }
         }
         // -----
 
